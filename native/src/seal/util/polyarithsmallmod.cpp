@@ -66,7 +66,7 @@ namespace seal
 
 #ifdef SEAL_USE_INTEL_HEXL
             intel::hexl::EltwiseAddMod(&result[0], &operand1[0], &operand2[0], coeff_count, modulus_value);
-#else
+#else            
 
             SEAL_ITERATE(iter(operand1, operand2, result), coeff_count, [&](auto I) {
 #ifdef SEAL_DEBUG
@@ -83,6 +83,39 @@ namespace seal
                 get<2>(I) = SEAL_COND_SELECT(sum >= modulus_value, sum - modulus_value, sum);
             });
 #endif
+        }
+
+        void copy_poly_coeffmod(
+            ConstCoeffIter operand, std::size_t coeff_count, const Modulus &modulus,
+            CoeffIter result)
+        {
+#ifdef SEAL_DEBUG
+            if (!operand && coeff_count > 0)
+            {
+                throw std::invalid_argument("operand");
+            }
+            if (modulus.is_zero())
+            {
+                throw std::invalid_argument("modulus");
+            }
+            if (!result && coeff_count > 0)
+            {
+                throw std::invalid_argument("result");
+            }
+#endif
+            const uint64_t modulus_value = modulus.value();
+            SEAL_ITERATE(iter(operand, result), coeff_count, [&](auto I) {
+#ifdef SEAL_DEBUG
+                if (get<0>(I) >= modulus_value)
+                {
+                    throw std::invalid_argument("operand");
+                }
+                
+#endif
+                std::uint64_t sum = get<0>(I);
+                get<1>(I) = SEAL_COND_SELECT(sum >= modulus_value, sum - modulus_value, sum);
+                //get<1>(I) = get<0>(I);
+            });
         }
 
         void sub_poly_coeffmod(

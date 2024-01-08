@@ -115,7 +115,7 @@ namespace seal
         @throws std::invalid_argument if encrypted1 and encrypted2 are at different level or scale
         @throws std::logic_error if result ciphertext is transparent
         */
-        void add_inplace(Ciphertext &encrypted1, const Ciphertext &encrypted2) const;
+        void add_inplace(Ciphertext &encrypted1, const Ciphertext &encrypted2, bool pk=false) const;
 
         /**
         Adds two ciphertexts. This function adds together encrypted1 and encrypted2 and stores the result in the

@@ -12,6 +12,8 @@
 #include <algorithm>
 #include <stdexcept>
 
+#include "seal/util/rlwe.h"
+
 using namespace std;
 using namespace seal::util;
 
@@ -101,9 +103,75 @@ namespace seal
         case scheme_type::ckks:
             ckks_decrypt(encrypted, destination, pool_);
             return;
+        
+        case scheme_type::bgv:
+            bgv_decrypt(encrypted, destination, pool_);
+            return;
+
+        default:
+            throw invalid_argument("unsupported scheme");
+        }
+    }
+
+    //TODO remove
+    void Decryptor::decrypt2(const Ciphertext &encrypted, Plaintext &destination)
+    {
+        // Verify that encrypted is valid.
+        if (!is_valid_for(encrypted, context_))
+        {
+            throw invalid_argument("encrypted is not valid for encryption parameters");
+        }
+
+        // Additionally check that ciphertext doesn't have trivial size
+        if (encrypted.size() < SEAL_CIPHERTEXT_SIZE_MIN)
+        {
+            throw invalid_argument("encrypted is empty");
+        }
+
+        auto &context_data = *context_.first_context_data();
+        auto &parms = context_data.parms();
+
+        switch (parms.scheme())
+        {
+        case scheme_type::bfv:
+            bfv_decrypt(encrypted, destination, pool_);
+            return;
+
+        case scheme_type::ckks:
+            mk_ckks_decrypt(encrypted, destination, pool_);
+            return;
 
         case scheme_type::bgv:
             bgv_decrypt(encrypted, destination, pool_);
+            return;
+
+        default:
+            throw invalid_argument("unsupported scheme");
+        }
+    }
+
+
+    void Decryptor::decryption_share(const Ciphertext &encrypted, Plaintext &destination)
+    {
+        // Verify that encrypted is valid.
+        if (!is_valid_for(encrypted, context_))
+        {
+            throw invalid_argument("encrypted is not valid for encryption parameters");
+        }
+
+        // Additionally check that ciphertext doesn't have trivial size
+        if (encrypted.size() < SEAL_CIPHERTEXT_SIZE_MIN)
+        {
+            throw invalid_argument("encrypted is empty");
+        }
+
+        auto &context_data = *context_.first_context_data();
+        auto &parms = context_data.parms();
+
+        switch (parms.scheme())
+        {
+            case scheme_type::ckks:
+            ckks_decryption_share(encrypted, destination, pool_);
             return;
 
         default:
@@ -185,6 +253,76 @@ namespace seal
         destination.parms_id() = encrypted.parms_id();
         destination.scale() = encrypted.scale();
     }
+
+    void Decryptor::mk_ckks_decrypt(const Ciphertext &encrypted, Plaintext &destination, MemoryPoolHandle pool)
+    {
+        if (!encrypted.is_ntt_form())
+        {
+            throw invalid_argument("encrypted must be in NTT form");
+        }
+
+        // We already know that the parameters are valid
+        auto &context_data = *context_.get_context_data(encrypted.parms_id());
+        auto &parms = context_data.parms();
+        auto &coeff_modulus = parms.coeff_modulus();
+        size_t coeff_count = parms.poly_modulus_degree();
+        size_t coeff_modulus_size = coeff_modulus.size();
+        size_t rns_poly_uint64_count = mul_safe(coeff_count, coeff_modulus_size);
+
+        // Decryption consists in copying the c_0 term into the Plaintext destination
+        // c_0 contains the C_sum_0 + DS_0 + ... + DS_i
+        // DS_i is the decryption share of the i-th party
+
+        // Since we overwrite destination, we zeroize destination parameters
+        // This is necessary, otherwise resize will throw an exception.
+        destination.parms_id() = parms_id_zero;
+
+        // Resize destination to appropriate size
+        destination.resize(rns_poly_uint64_count);
+
+        // Copy c_0 into destination
+        copy_ct_share(encrypted, RNSIter(destination.data(), coeff_count), pool);
+
+        // Set destination parameters as in encrypted
+        destination.parms_id() = encrypted.parms_id();
+        destination.scale() = encrypted.scale();
+    }
+
+    void Decryptor::ckks_decryption_share(const Ciphertext &encrypted, Plaintext &destination, MemoryPoolHandle pool)
+    {
+        if (!encrypted.is_ntt_form())
+        {
+            throw invalid_argument("encrypted must be in NTT form");
+        }
+
+        // We already know that the parameters are valid
+        auto &context_data = *context_.get_context_data(encrypted.parms_id());
+        auto &parms = context_data.parms();
+        auto &coeff_modulus = parms.coeff_modulus();
+        size_t coeff_count = parms.poly_modulus_degree();
+        size_t coeff_modulus_size = coeff_modulus.size();
+        size_t rns_poly_uint64_count = mul_safe(coeff_count, coeff_modulus_size);
+
+        // Decryption consists in finding
+        // c_0 + c_1 *s + ... + c_{count-1} * s^{count-1} mod q_1 * q_2 * q_3
+        // as long as ||m + v|| < q_1 * q_2 * q_3.
+        // This is equal to m + v where ||v|| is small enough.
+
+        // Since we overwrite destination, we zeroize destination parameters
+        // This is necessary, otherwise resize will throw an exception.
+        destination.parms_id() = parms_id_zero;
+
+        // Resize destination to appropriate size
+        destination.resize(rns_poly_uint64_count);
+
+        // Do the dot product of encrypted and the secret key array using NTT.
+        partial_dot_product_ct_sk_array(encrypted, RNSIter(destination.data(), coeff_count), pool);
+
+        // Set destination parameters as in encrypted
+        destination.parms_id() = encrypted.parms_id();
+        destination.scale() = encrypted.scale();
+    }
+
 
     void Decryptor::bgv_decrypt(const Ciphertext &encrypted, Plaintext &destination, MemoryPoolHandle pool)
     {
@@ -377,6 +515,154 @@ namespace seal
 
             // Finally add c_0 to the result; note that destination should be in the same (NTT) form as encrypted
             add_poly_coeffmod(destination, *iter(encrypted), coeff_modulus_size, coeff_modulus, destination);
+        }
+    }
+
+    // Copy c_0 + decryption share mod q into destination.
+    // Store result in destination in RNS form.
+    void Decryptor::copy_ct_share(const Ciphertext &encrypted, RNSIter destination, MemoryPoolHandle pool)
+    {
+        auto &context_data = *context_.get_context_data(encrypted.parms_id());
+        auto &parms = context_data.parms();
+        auto &coeff_modulus = parms.coeff_modulus();
+        size_t coeff_count = parms.poly_modulus_degree();
+        size_t coeff_modulus_size = coeff_modulus.size();
+        size_t key_coeff_modulus_size = context_.key_context_data()->parms().coeff_modulus().size();
+        size_t encrypted_size = encrypted.size();
+        auto is_ntt_form = encrypted.is_ntt_form();
+
+        auto ntt_tables = context_data.small_ntt_tables();
+
+        // Make sure we have enough secret key powers computed
+        compute_secret_key_array(encrypted_size - 1);
+
+        if (encrypted_size == 2)
+        {
+            ConstRNSIter secret_key_array(secret_key_array_.get(), coeff_count);
+            ConstRNSIter c0(encrypted.data(0), coeff_count);
+            ConstRNSIter c1(encrypted.data(1), coeff_count);
+            if (is_ntt_form)
+            {
+                SEAL_ITERATE(
+                    iter(c0, c1, secret_key_array, coeff_modulus, destination), coeff_modulus_size, [&](auto I) {
+                        // copy c_0 to the result; note that destination should be in the same (NTT) form as encrypted
+                        copy_poly_coeffmod(get<0>(I), coeff_count, get<3>(I), get<4>(I));
+                    });
+            }
+            else
+            {
+                SEAL_ITERATE(
+                    iter(c0, c1, secret_key_array, coeff_modulus, ntt_tables, destination), coeff_modulus_size,
+                    [&](auto I) {
+                         // copy c_0 to the result; note that destination should be in the same (NTT) form as encrypted
+                        copy_poly_coeffmod(get<0>(I), coeff_count, get<3>(I), get<5>(I));
+                    });
+            }
+        }
+        else
+        {
+            // Finally copy c_0 to the result; note that destination should be in the same (NTT) form as encrypted
+            copy_poly_coeffmod(*iter(encrypted), coeff_modulus_size, coeff_modulus, destination);
+        }
+    }
+
+    // Compute c_1 *s + ... + c_{count-1} * s^{count-1} mod q.
+    // Store result in destination in RNS form.
+    void Decryptor::partial_dot_product_ct_sk_array(const Ciphertext &encrypted, RNSIter destination, MemoryPoolHandle pool)
+    {
+        auto &context_data = *context_.get_context_data(encrypted.parms_id());
+        auto &parms = context_data.parms();
+        auto &coeff_modulus = parms.coeff_modulus();
+        size_t coeff_count = parms.poly_modulus_degree();
+        size_t coeff_modulus_size = coeff_modulus.size();
+        size_t key_coeff_modulus_size = context_.key_context_data()->parms().coeff_modulus().size();
+        size_t encrypted_size = encrypted.size();
+        auto is_ntt_form = encrypted.is_ntt_form();
+
+        auto ntt_tables = context_data.small_ntt_tables();
+
+        // Make sure we have enough secret key powers computed
+        compute_secret_key_array(encrypted_size - 1);
+
+        auto prng = parms.random_generator()->create();
+        auto noise(allocate_poly(coeff_count, coeff_modulus_size, pool));
+        SEAL_NOISE_SAMPLER(prng, parms, noise.get());
+        RNSIter noise_iter(noise.get(), coeff_count);
+
+        if (encrypted_size == 2)
+        {
+            ConstRNSIter secret_key_array(secret_key_array_.get(), coeff_count);
+            ConstRNSIter c0(encrypted.data(0), coeff_count);
+            ConstRNSIter c1(encrypted.data(1), coeff_count);
+            
+            if (is_ntt_form)
+            {
+                SEAL_ITERATE(
+                    iter(noise_iter, c1, secret_key_array, coeff_modulus, destination, ntt_tables), coeff_modulus_size, [&](auto I) {
+                        // put < c_1 * s > mod q in destination
+                        dyadic_product_coeffmod(get<1>(I), get<2>(I), coeff_count, get<3>(I), get<4>(I));
+                        // Transform the noise e into NTT representation
+                        ntt_negacyclic_harvey(get<0>(I), get<5>(I)); 
+                        // add noise to the result; note that destination should be in the same (NTT) form as encrypted
+                        add_poly_coeffmod(get<4>(I), get<0>(I), coeff_count, get<3>(I), get<4>(I));
+                    });
+            }
+            else
+            {
+                SEAL_ITERATE(
+                    iter(noise_iter, c1, secret_key_array, coeff_modulus, ntt_tables, destination), coeff_modulus_size,
+                    [&](auto I) {
+                        set_uint(get<1>(I), coeff_count, get<5>(I));
+                        // Transform c_1 to NTT form
+                        ntt_negacyclic_harvey_lazy(get<5>(I), get<4>(I));
+                        // put < c_1 * s > mod q in destination
+                        dyadic_product_coeffmod(get<5>(I), get<2>(I), coeff_count, get<3>(I), get<5>(I));
+                        // Transform back
+                        inverse_ntt_negacyclic_harvey(get<5>(I), get<4>(I));
+                        // add c_0 to the result; note that destination should be in the same (NTT) form as encrypted
+                        add_poly_coeffmod(get<5>(I), get<0>(I), coeff_count, get<3>(I), get<5>(I));
+                    });
+            }
+        }
+        else
+        {
+            // put < (c_1 , c_2, ... , c_{count-1}) , (s,s^2,...,s^{count-1}) > mod q in destination
+            // Now do the dot product of encrypted_copy and the secret key array using NTT.
+            // The secret key powers are already NTT transformed.
+            SEAL_ALLOCATE_GET_POLY_ITER(encrypted_copy, encrypted_size - 1, coeff_count, coeff_modulus_size, pool);
+            set_poly_array(encrypted.data(1), encrypted_size - 1, coeff_count, coeff_modulus_size, encrypted_copy);
+
+            // Transform c_1, c_2, ... to NTT form unless they already are
+            if (!is_ntt_form)
+            {
+                ntt_negacyclic_harvey_lazy(encrypted_copy, encrypted_size - 1, ntt_tables);
+            }
+
+            // Compute dyadic product with secret power array
+            auto secret_key_array = PolyIter(secret_key_array_.get(), coeff_count, key_coeff_modulus_size);
+            SEAL_ITERATE(iter(encrypted_copy, secret_key_array), encrypted_size - 1, [&](auto I) {
+                dyadic_product_coeffmod(get<0>(I), get<1>(I), coeff_modulus_size, coeff_modulus, get<0>(I));
+            });
+            // Aggregate all polynomials together to complete the dot product
+            set_zero_poly(coeff_count, coeff_modulus_size, destination);
+            SEAL_ITERATE(encrypted_copy, encrypted_size - 1, [&](auto I) {
+                add_poly_coeffmod(destination, I, coeff_modulus_size, coeff_modulus, destination);
+            });
+
+            if (!is_ntt_form)
+            {
+                // If the input was not in NTT form, need to transform back
+                inverse_ntt_negacyclic_harvey(destination, coeff_modulus_size, ntt_tables);
+            }
+
+            SEAL_ITERATE(iter(noise_iter, ntt_tables), coeff_modulus_size, 
+                [&](auto I){
+                    // Transform the noise e into NTT representation
+                    ntt_negacyclic_harvey(get<0>(I), get<1>(I));
+                });
+
+            // Finally add c_0 to the result; note that destination should be in the same (NTT) form as encrypted
+            add_poly_coeffmod(destination, noise_iter, coeff_modulus_size, coeff_modulus, destination);
         }
     }
 

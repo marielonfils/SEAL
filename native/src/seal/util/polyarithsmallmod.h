@@ -228,6 +228,66 @@ namespace seal
             });
         }
 
+        void copy_poly_coeffmod(
+            ConstCoeffIter operand, std::size_t coeff_count, const Modulus &modulus,
+            CoeffIter result);
+
+        inline void copy_poly_coeffmod(
+            ConstRNSIter operand, std::size_t coeff_modulus_size, ConstModulusIter modulus,
+            RNSIter result)
+        {
+#ifdef SEAL_DEBUG
+            if (!operand && coeff_modulus_size > 0)
+            {
+                throw std::invalid_argument("operand1");
+            }
+            if (!result && coeff_modulus_size > 0)
+            {
+                throw std::invalid_argument("result");
+            }
+            if (!modulus && coeff_modulus_size > 0)
+            {
+                throw std::invalid_argument("modulus");
+            }
+            if (operand.poly_modulus_degree() != result.poly_modulus_degree())
+            {
+                throw std::invalid_argument("incompatible iterators");
+            }
+#endif
+            auto poly_modulus_degree = result.poly_modulus_degree();
+            SEAL_ITERATE(iter(operand, modulus, result), coeff_modulus_size, [&](auto I) {
+                copy_poly_coeffmod(get<0>(I), poly_modulus_degree, get<1>(I), get<2>(I));
+            });
+        }
+
+        inline void copy_poly_coeffmod(
+            ConstPolyIter operand, std::size_t size, ConstModulusIter modulus, PolyIter result)
+        {
+#ifdef SEAL_DEBUG
+            if (!operand && size > 0)
+            {
+                throw std::invalid_argument("operand");
+            }
+            if (!result && size > 0)
+            {
+                throw std::invalid_argument("result");
+            }
+            if (!modulus && size > 0)
+            {
+                throw std::invalid_argument("modulus");
+            }
+            if (operand.coeff_modulus_size() != result.coeff_modulus_size())
+            {
+                throw std::invalid_argument("incompatible iterators");
+            }
+#endif
+            auto coeff_modulus_size = result.coeff_modulus_size();
+            SEAL_ITERATE(iter(operand, result), size, [&](auto I) {
+                copy_poly_coeffmod(get<0>(I), coeff_modulus_size, modulus, get<1>(I));
+            });
+        }
+
+
         void sub_poly_coeffmod(
             ConstCoeffIter operand1, ConstCoeffIter operand2, std::size_t coeff_count, const Modulus &modulus,
             CoeffIter result);

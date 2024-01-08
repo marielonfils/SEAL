@@ -152,14 +152,14 @@ namespace seal
 #endif
     }
 
-    void Evaluator::add_inplace(Ciphertext &encrypted1, const Ciphertext &encrypted2) const
+    void Evaluator::add_inplace(Ciphertext &encrypted1, const Ciphertext &encrypted2,bool pk) const
     {
         // Verify parameters.
-        if (!is_metadata_valid_for(encrypted1, context_) || !is_buffer_valid(encrypted1))
+        if (!is_metadata_valid_for(encrypted1, context_, pk) || !is_buffer_valid(encrypted1))
         {
             throw invalid_argument("encrypted1 is not valid for encryption parameters");
         }
-        if (!is_metadata_valid_for(encrypted2, context_) || !is_buffer_valid(encrypted2))
+        if (!is_metadata_valid_for(encrypted2, context_,pk) || !is_buffer_valid(encrypted2))
         {
             throw invalid_argument("encrypted2 is not valid for encryption parameters");
         }
@@ -238,6 +238,97 @@ namespace seal
         }
 #endif
     }
+
+    /*void Evaluator::add_public_key_inplace(PublicKey &encrypted1, const PublicKey &encrypted2) const
+    {
+        // Verify parameters.
+        cout << " metat data valid for encrypted1: " << is_metadata_valid_for(encrypted1, context_) << endl;
+        cout << " buffer valid for encrypted1: " << is_buffer_valid(encrypted1) << endl;
+        if (!is_metadata_valid_for(encrypted1, context_) || !is_buffer_valid(encrypted1))
+        {
+            throw invalid_argument("encrypted1 is not valid for encryption parameters");
+        }
+        if (!is_metadata_valid_for(encrypted2, context_) || !is_buffer_valid(encrypted2))
+        {
+            throw invalid_argument("encrypted2 is not valid for encryption parameters");
+        }
+        if (encrypted1.parms_id() != encrypted2.parms_id())
+        {
+            throw invalid_argument("encrypted1 and encrypted2 parameter mismatch");
+        }
+        if (encrypted1.is_ntt_form() != encrypted2.is_ntt_form())
+        {
+            throw invalid_argument("NTT form mismatch");
+        }
+        if (!are_same_scale(encrypted1, encrypted2))
+        {
+            throw invalid_argument("scale mismatch");
+        }
+
+        cout << "validation over" << endl;
+
+        // Extract encryption parameters.
+        auto &context_data = *context_.get_context_data(encrypted1.parms_id());
+        auto &parms = context_data.parms();
+        auto &coeff_modulus = parms.coeff_modulus();
+        auto &plain_modulus = parms.plain_modulus();
+        size_t coeff_count = parms.poly_modulus_degree();
+        size_t coeff_modulus_size = coeff_modulus.size();
+        size_t encrypted1_size = encrypted1.size();
+        size_t encrypted2_size = encrypted2.size();
+        size_t max_count = max(encrypted1_size, encrypted2_size);
+        size_t min_count = min(encrypted1_size, encrypted2_size);
+
+        // Size check
+        if (!product_fits_in(max_count, coeff_count))
+        {
+            throw logic_error("invalid parameters");
+        }
+
+        if (encrypted1.correction_factor() != encrypted2.correction_factor())
+        {
+            // Balance correction factors and multiply by scalars before addition in BGV
+            auto factors = balance_correction_factors(
+                encrypted1.correction_factor(), encrypted2.correction_factor(), plain_modulus);
+            multiply_poly_scalar_coeffmod(
+                ConstPolyIter(encrypted1.data(), coeff_count, coeff_modulus_size), encrypted1.size(), get<1>(factors),
+                coeff_modulus, PolyIter(encrypted1.data(), coeff_count, coeff_modulus_size));
+
+            Ciphertext encrypted2_copy = encrypted2;
+            multiply_poly_scalar_coeffmod(
+                ConstPolyIter(encrypted2.data(), coeff_count, coeff_modulus_size), encrypted2.size(), get<2>(factors),
+                coeff_modulus, PolyIter(encrypted2_copy.data(), coeff_count, coeff_modulus_size));
+
+            // Set new correction factor
+            encrypted1.correction_factor() = get<0>(factors);
+            encrypted2_copy.correction_factor() = get<0>(factors);
+
+            add_inplace(encrypted1, encrypted2_copy);
+        }
+        else
+        {
+            // Prepare destination
+            encrypted1.resize(context_, context_data.parms_id(), max_count);
+            // Add ciphertexts
+            add_poly_coeffmod(encrypted1, encrypted2, min_count, coeff_modulus, encrypted1);
+
+            // Copy the remainding polys of the array with larger count into encrypted1
+            if (encrypted1_size < encrypted2_size)
+            {
+                set_poly_array(
+                    encrypted2.data(min_count), encrypted2_size - encrypted1_size, coeff_count, coeff_modulus_size,
+                    encrypted1.data(encrypted1_size));
+            }
+        }
+
+#ifdef SEAL_THROW_ON_TRANSPARENT_CIPHERTEXT
+        // Transparent ciphertext output is not allowed.
+        if (encrypted1.is_transparent())
+        {
+            throw logic_error("result ciphertext is transparent");
+        }
+#endif
+    }*/
 
     void Evaluator::add_many(const vector<Ciphertext> &encrypteds, Ciphertext &destination) const
     {
@@ -375,7 +466,7 @@ namespace seal
         case scheme_type::ckks:
             ckks_multiply(encrypted1, encrypted2, pool);
             break;
-
+        
         case scheme_type::bgv:
             bgv_multiply(encrypted1, encrypted2, pool);
             break;
@@ -858,7 +949,7 @@ namespace seal
         case scheme_type::ckks:
             ckks_square(encrypted, move(pool));
             break;
-
+        
         case scheme_type::bgv:
             bgv_square(encrypted, move(pool));
             break;
@@ -1246,7 +1337,7 @@ namespace seal
                 rns_tool->divide_and_round_q_last_ntt_inplace(I, context_data.small_ntt_tables(), pool);
             });
             break;
-
+        
         case scheme_type::bgv:
             SEAL_ITERATE(iter(encrypted_copy), encrypted_size, [&](auto I) {
                 rns_tool->mod_t_and_divide_q_last_ntt_inplace(I, context_data.small_ntt_tables(), pool);
@@ -1409,7 +1500,7 @@ namespace seal
             // Modulus switching without scaling
             mod_switch_drop_to_next(encrypted, destination, move(pool));
             break;
-
+        
         case scheme_type::bgv:
             mod_switch_scale_to_next(encrypted, destination, move(pool));
             break;
@@ -1505,7 +1596,7 @@ namespace seal
             // Modulus switching with scaling
             mod_switch_scale_to_next(encrypted, destination, move(pool));
             break;
-
+    
         default:
             throw invalid_argument("unsupported scheme");
         }
@@ -1559,7 +1650,7 @@ namespace seal
                 mod_switch_scale_to_next(encrypted, encrypted, pool);
             }
             break;
-
+        
         default:
             throw invalid_argument("unsupported scheme");
         }

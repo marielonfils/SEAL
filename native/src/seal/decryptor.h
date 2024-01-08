@@ -72,6 +72,18 @@ namespace seal
         @throws std::invalid_argument if encrypted is not in the default NTT form
         */
         void decrypt(const Ciphertext &encrypted, Plaintext &destination);
+        void decrypt2(const Ciphertext &encrypted, Plaintext &destination);
+        /*
+        Decryption share of a Ciphertext and stores the result in the destination parameter.
+
+        @param[in] encrypted The ciphertext to decrypt
+        @param[out] destination The plaintext to overwrite with the decrypted
+        ciphertext
+        @throws std::invalid_argument if encrypted is not valid for the encryption
+        parameters
+        @throws std::invalid_argument if encrypted is not in the default NTT form
+        */
+        void decryption_share(const Ciphertext &encrypted, Plaintext &destination);
 
         /*
         Computes the invariant noise budget (in bits) of a ciphertext. The
@@ -104,6 +116,10 @@ namespace seal
 
         void ckks_decrypt(const Ciphertext &encrypted, Plaintext &destination, MemoryPoolHandle pool);
 
+        void mk_ckks_decrypt(const Ciphertext &encrypted, Plaintext &destination, MemoryPoolHandle pool);
+
+        void ckks_decryption_share(const Ciphertext &encrypted, Plaintext &destination, MemoryPoolHandle pool);
+
         void bgv_decrypt(const Ciphertext &encrypted, Plaintext &destination, MemoryPoolHandle pool);
 
         Decryptor(const Decryptor &copy) = delete;
@@ -120,6 +136,17 @@ namespace seal
         // Store result in destination in RNS form.
         // destination has the size of an RNS polynomial.
         void dot_product_ct_sk_array(const Ciphertext &encrypted, util::RNSIter destination, MemoryPoolHandle pool);
+
+        // Copy C_sum_0 + decryption shares mod q.
+        // Store result in destination in RNS form.
+        // destination has the size of an RNS polynomial.
+        void copy_ct_share(const Ciphertext &encrypted, util::RNSIter destination, MemoryPoolHandle pool);
+
+        // Compute c_1 *s + ... + c_{count-1} * s^{count-1} mod q.
+        // Store result in destination in RNS form.
+        // destination has the size of an RNS polynomial.
+        void partial_dot_product_ct_sk_array(const Ciphertext &encrypted, util::RNSIter destination, MemoryPoolHandle pool);
+
 
         // We use a fresh memory pool with `clear_on_destruction' enabled.
         MemoryPoolHandle pool_ = MemoryManager::GetPool(mm_prof_opt::mm_force_new, true);

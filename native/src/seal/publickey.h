@@ -48,6 +48,12 @@ namespace seal
         */
         PublicKey(PublicKey &&source) = default;
 
+        //TODO comments
+        PublicKey(const Ciphertext &ciphertext){
+            PublicKey(ciphertext.pool());
+            this->pk_ = ciphertext;
+        }
+
         /**
         Copies an old PublicKey to the current one.
 
