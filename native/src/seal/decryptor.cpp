@@ -104,43 +104,10 @@ namespace seal
             ckks_decrypt(encrypted, destination, pool_);
             return;
         
-        case scheme_type::bgv:
-            bgv_decrypt(encrypted, destination, pool_);
-            return;
-
-        default:
-            throw invalid_argument("unsupported scheme");
-        }
-    }
-
-    //TODO remove
-    void Decryptor::decrypt2(const Ciphertext &encrypted, Plaintext &destination)
-    {
-        // Verify that encrypted is valid.
-        if (!is_valid_for(encrypted, context_))
-        {
-            throw invalid_argument("encrypted is not valid for encryption parameters");
-        }
-
-        // Additionally check that ciphertext doesn't have trivial size
-        if (encrypted.size() < SEAL_CIPHERTEXT_SIZE_MIN)
-        {
-            throw invalid_argument("encrypted is empty");
-        }
-
-        auto &context_data = *context_.first_context_data();
-        auto &parms = context_data.parms();
-
-        switch (parms.scheme())
-        {
-        case scheme_type::bfv:
-            bfv_decrypt(encrypted, destination, pool_);
-            return;
-
-        case scheme_type::ckks:
+        case scheme_type::mk_ckks:
             mk_ckks_decrypt(encrypted, destination, pool_);
             return;
-
+        
         case scheme_type::bgv:
             bgv_decrypt(encrypted, destination, pool_);
             return;
@@ -149,7 +116,6 @@ namespace seal
             throw invalid_argument("unsupported scheme");
         }
     }
-
 
     void Decryptor::decryption_share(const Ciphertext &encrypted, Plaintext &destination)
     {
@@ -170,9 +136,9 @@ namespace seal
 
         switch (parms.scheme())
         {
-            case scheme_type::ckks:
-            ckks_decryption_share(encrypted, destination, pool_);
-            return;
+            case scheme_type::mk_ckks:
+                ckks_decryption_share(encrypted, destination, pool_);
+                return;
 
         default:
             throw invalid_argument("unsupported scheme");

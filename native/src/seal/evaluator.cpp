@@ -39,6 +39,9 @@ namespace seal
             case scheme_type::ckks:
                 scale_bit_count_bound = context_data.total_coeff_modulus_bit_count();
                 break;
+            case scheme_type::mk_ckks:
+                scale_bit_count_bound = context_data.total_coeff_modulus_bit_count();
+                break;
             default:
                 // Unsupported scheme; check will fail
                 scale_bit_count_bound = -1;
@@ -239,97 +242,6 @@ namespace seal
 #endif
     }
 
-    /*void Evaluator::add_public_key_inplace(PublicKey &encrypted1, const PublicKey &encrypted2) const
-    {
-        // Verify parameters.
-        cout << " metat data valid for encrypted1: " << is_metadata_valid_for(encrypted1, context_) << endl;
-        cout << " buffer valid for encrypted1: " << is_buffer_valid(encrypted1) << endl;
-        if (!is_metadata_valid_for(encrypted1, context_) || !is_buffer_valid(encrypted1))
-        {
-            throw invalid_argument("encrypted1 is not valid for encryption parameters");
-        }
-        if (!is_metadata_valid_for(encrypted2, context_) || !is_buffer_valid(encrypted2))
-        {
-            throw invalid_argument("encrypted2 is not valid for encryption parameters");
-        }
-        if (encrypted1.parms_id() != encrypted2.parms_id())
-        {
-            throw invalid_argument("encrypted1 and encrypted2 parameter mismatch");
-        }
-        if (encrypted1.is_ntt_form() != encrypted2.is_ntt_form())
-        {
-            throw invalid_argument("NTT form mismatch");
-        }
-        if (!are_same_scale(encrypted1, encrypted2))
-        {
-            throw invalid_argument("scale mismatch");
-        }
-
-        cout << "validation over" << endl;
-
-        // Extract encryption parameters.
-        auto &context_data = *context_.get_context_data(encrypted1.parms_id());
-        auto &parms = context_data.parms();
-        auto &coeff_modulus = parms.coeff_modulus();
-        auto &plain_modulus = parms.plain_modulus();
-        size_t coeff_count = parms.poly_modulus_degree();
-        size_t coeff_modulus_size = coeff_modulus.size();
-        size_t encrypted1_size = encrypted1.size();
-        size_t encrypted2_size = encrypted2.size();
-        size_t max_count = max(encrypted1_size, encrypted2_size);
-        size_t min_count = min(encrypted1_size, encrypted2_size);
-
-        // Size check
-        if (!product_fits_in(max_count, coeff_count))
-        {
-            throw logic_error("invalid parameters");
-        }
-
-        if (encrypted1.correction_factor() != encrypted2.correction_factor())
-        {
-            // Balance correction factors and multiply by scalars before addition in BGV
-            auto factors = balance_correction_factors(
-                encrypted1.correction_factor(), encrypted2.correction_factor(), plain_modulus);
-            multiply_poly_scalar_coeffmod(
-                ConstPolyIter(encrypted1.data(), coeff_count, coeff_modulus_size), encrypted1.size(), get<1>(factors),
-                coeff_modulus, PolyIter(encrypted1.data(), coeff_count, coeff_modulus_size));
-
-            Ciphertext encrypted2_copy = encrypted2;
-            multiply_poly_scalar_coeffmod(
-                ConstPolyIter(encrypted2.data(), coeff_count, coeff_modulus_size), encrypted2.size(), get<2>(factors),
-                coeff_modulus, PolyIter(encrypted2_copy.data(), coeff_count, coeff_modulus_size));
-
-            // Set new correction factor
-            encrypted1.correction_factor() = get<0>(factors);
-            encrypted2_copy.correction_factor() = get<0>(factors);
-
-            add_inplace(encrypted1, encrypted2_copy);
-        }
-        else
-        {
-            // Prepare destination
-            encrypted1.resize(context_, context_data.parms_id(), max_count);
-            // Add ciphertexts
-            add_poly_coeffmod(encrypted1, encrypted2, min_count, coeff_modulus, encrypted1);
-
-            // Copy the remainding polys of the array with larger count into encrypted1
-            if (encrypted1_size < encrypted2_size)
-            {
-                set_poly_array(
-                    encrypted2.data(min_count), encrypted2_size - encrypted1_size, coeff_count, coeff_modulus_size,
-                    encrypted1.data(encrypted1_size));
-            }
-        }
-
-#ifdef SEAL_THROW_ON_TRANSPARENT_CIPHERTEXT
-        // Transparent ciphertext output is not allowed.
-        if (encrypted1.is_transparent())
-        {
-            throw logic_error("result ciphertext is transparent");
-        }
-#endif
-    }*/
-
     void Evaluator::add_many(const vector<Ciphertext> &encrypteds, Ciphertext &destination) const
     {
         if (encrypteds.empty())
@@ -464,6 +376,10 @@ namespace seal
             break;
 
         case scheme_type::ckks:
+            ckks_multiply(encrypted1, encrypted2, pool);
+            break;
+        
+        case scheme_type::mk_ckks:
             ckks_multiply(encrypted1, encrypted2, pool);
             break;
         
@@ -950,6 +866,10 @@ namespace seal
             ckks_square(encrypted, move(pool));
             break;
         
+        case scheme_type::mk_ckks:
+            ckks_square(encrypted, move(pool));
+            break;
+        
         case scheme_type::bgv:
             bgv_square(encrypted, move(pool));
             break;
@@ -1298,7 +1218,7 @@ namespace seal
         {
             throw invalid_argument("BFV encrypted cannot be in NTT form");
         }
-        if (context_data_ptr->parms().scheme() == scheme_type::ckks && !encrypted.is_ntt_form())
+        if ((context_data_ptr->parms().scheme() == scheme_type::ckks || context_data_ptr->parms().scheme() == scheme_type::mk_ckks) && !encrypted.is_ntt_form())
         {
             throw invalid_argument("CKKS encrypted must be in NTT form");
         }
@@ -1338,6 +1258,12 @@ namespace seal
             });
             break;
         
+        case scheme_type::mk_ckks:
+            SEAL_ITERATE(iter(encrypted_copy), encrypted_size, [&](auto I) {
+                rns_tool->divide_and_round_q_last_ntt_inplace(I, context_data.small_ntt_tables(), pool);
+            });
+            break;
+        
         case scheme_type::bgv:
             SEAL_ITERATE(iter(encrypted_copy), encrypted_size, [&](auto I) {
                 rns_tool->mod_t_and_divide_q_last_ntt_inplace(I, context_data.small_ntt_tables(), pool);
@@ -1356,7 +1282,7 @@ namespace seal
 
         // Set other attributes
         destination.is_ntt_form() = encrypted.is_ntt_form();
-        if (next_parms.scheme() == scheme_type::ckks)
+        if (next_parms.scheme() == scheme_type::ckks || next_parms.scheme() == scheme_type::mk_ckks)
         {
             // Change the scale when using CKKS
             destination.scale() =
@@ -1375,7 +1301,7 @@ namespace seal
     {
         // Assuming at this point encrypted is already validated.
         auto context_data_ptr = context_.get_context_data(encrypted.parms_id());
-        if (context_data_ptr->parms().scheme() == scheme_type::ckks && !encrypted.is_ntt_form())
+        if ((context_data_ptr->parms().scheme() == scheme_type::ckks || context_data_ptr->parms().scheme() == scheme_type::mk_ckks) && !encrypted.is_ntt_form())
         {
             throw invalid_argument("CKKS encrypted must be in NTT form");
         }
@@ -1501,6 +1427,11 @@ namespace seal
             mod_switch_drop_to_next(encrypted, destination, move(pool));
             break;
         
+        case scheme_type::mk_ckks:
+            // Modulus switching without scaling
+            mod_switch_drop_to_next(encrypted, destination, move(pool));
+            break;
+        
         case scheme_type::bgv:
             mod_switch_scale_to_next(encrypted, destination, move(pool));
             break;
@@ -1596,6 +1527,11 @@ namespace seal
             // Modulus switching with scaling
             mod_switch_scale_to_next(encrypted, destination, move(pool));
             break;
+        
+        case scheme_type::mk_ckks:
+            // Modulus switching with scaling
+            mod_switch_scale_to_next(encrypted, destination, move(pool));
+            break;
     
         default:
             throw invalid_argument("unsupported scheme");
@@ -1644,6 +1580,14 @@ namespace seal
             throw invalid_argument("unsupported operation for scheme type");
 
         case scheme_type::ckks:
+            while (encrypted.parms_id() != parms_id)
+            {
+                // Modulus switching with scaling
+                mod_switch_scale_to_next(encrypted, encrypted, pool);
+            }
+            break;
+        
+        case scheme_type::mk_ckks:
             while (encrypted.parms_id() != parms_id)
             {
                 // Modulus switching with scaling
@@ -1850,7 +1794,7 @@ namespace seal
                 throw invalid_argument("BFV plain cannot be in NTT form");
             }
         }
-        else if (parms.scheme() == scheme_type::ckks)
+        else if (parms.scheme() == scheme_type::ckks || parms.scheme() == scheme_type::mk_ckks)
         {
             if (!encrypted.is_ntt_form())
             {
@@ -1908,6 +1852,14 @@ namespace seal
             break;
         }
 
+        case scheme_type::mk_ckks:
+        {
+            RNSIter encrypted_iter(encrypted.data(), coeff_count);
+            ConstRNSIter plain_iter(plain.data(), coeff_count);
+            add_poly_coeffmod(encrypted_iter, plain_iter, coeff_modulus_size, coeff_modulus, encrypted_iter);
+            break;
+        }
+
         case scheme_type::bgv:
         {
             Plaintext plain_copy = plain;
@@ -1958,7 +1910,7 @@ namespace seal
                 throw invalid_argument("BFV plain cannot be in NTT form");
             }
         }
-        else if (parms.scheme() == scheme_type::ckks)
+        else if (parms.scheme() == scheme_type::ckks || parms.scheme() == scheme_type::mk_ckks)
         {
             if (!encrypted.is_ntt_form())
             {
@@ -2009,6 +1961,14 @@ namespace seal
         }
 
         case scheme_type::ckks:
+        {
+            RNSIter encrypted_iter(encrypted.data(), coeff_count);
+            ConstRNSIter plain_iter(plain.data(), coeff_count);
+            sub_poly_coeffmod(encrypted_iter, plain_iter, coeff_modulus_size, coeff_modulus, encrypted_iter);
+            break;
+        }
+
+        case scheme_type::mk_ckks:
         {
             RNSIter encrypted_iter(encrypted.data(), coeff_count);
             ConstRNSIter plain_iter(plain.data(), coeff_count);
@@ -2152,7 +2112,7 @@ namespace seal
             }
 
             // Set the scale
-            if (parms.scheme() == scheme_type::ckks)
+            if (parms.scheme() == scheme_type::ckks || parms.scheme() == scheme_type::mk_ckks)
             {
                 encrypted.scale() *= plain.scale();
                 if (!is_scale_within_bounds(encrypted.scale(), context_data))
@@ -2213,7 +2173,7 @@ namespace seal
         });
 
         // Set the scale
-        if (parms.scheme() == scheme_type::ckks)
+        if (parms.scheme() == scheme_type::ckks || parms.scheme() == scheme_type::mk_ckks)
         {
             encrypted.scale() *= plain.scale();
             if (!is_scale_within_bounds(encrypted.scale(), context_data))
@@ -2517,7 +2477,7 @@ namespace seal
             // Next transform encrypted.data(1)
             galois_tool->apply_galois(encrypted_iter[1], coeff_modulus_size, galois_elt, coeff_modulus, temp);
         }
-        else if (parms.scheme() == scheme_type::ckks || parms.scheme() == scheme_type::bgv)
+        else if (parms.scheme() == scheme_type::ckks || parms.scheme() == scheme_type::mk_ckks || parms.scheme() == scheme_type::bgv)
         {
             // !!! DO NOT CHANGE EXECUTION ORDER!!!
 
@@ -2654,9 +2614,9 @@ namespace seal
         {
             throw invalid_argument("BFV encrypted cannot be in NTT form");
         }
-        if (scheme == scheme_type::ckks && !encrypted.is_ntt_form())
+        if ((scheme == scheme_type::ckks || scheme == scheme_type::mk_ckks) && !encrypted.is_ntt_form())
         {
-            throw invalid_argument("CKKS encrypted must be in NTT form");
+            throw invalid_argument("CKKS/MK_CKKS encrypted must be in NTT form");
         }
         if (scheme == scheme_type::bgv && !encrypted.is_ntt_form())
         {
@@ -2696,7 +2656,7 @@ namespace seal
         set_uint(target_iter, decomp_modulus_size * coeff_count, t_target);
 
         // In CKKS or BGV, t_target is in NTT form; switch back to normal form
-        if (scheme == scheme_type::ckks || scheme == scheme_type::bgv)
+        if (scheme == scheme_type::ckks || scheme == scheme_type::mk_ckks || scheme == scheme_type::bgv)
         {
             inverse_ntt_negacyclic_harvey(t_target, decomp_modulus_size, key_ntt_tables);
         }
@@ -2723,7 +2683,7 @@ namespace seal
                 ConstCoeffIter t_operand;
 
                 // RNS-NTT form exists in input
-                if ((scheme == scheme_type::ckks || scheme == scheme_type::bgv) && (I == J))
+                if ((scheme == scheme_type::ckks || scheme == scheme_type::mk_ckks || scheme == scheme_type::bgv) && (I == J))
                 {
                     t_operand = target_iter[J];
                 }
@@ -2880,7 +2840,7 @@ namespace seal
                     SEAL_ITERATE(t_ntt, coeff_count, [fix](auto &K) { K += fix; });
 
                     uint64_t qi_lazy = qi << 1; // some multiples of qi
-                    if (scheme == scheme_type::ckks)
+                    if (scheme == scheme_type::ckks || scheme == scheme_type::mk_ckks)
                     {
                         // This ntt_negacyclic_harvey_lazy results in [0, 4*qi).
                         ntt_negacyclic_harvey_lazy(t_ntt, get<2>(J));

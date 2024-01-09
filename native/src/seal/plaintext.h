@@ -39,7 +39,7 @@ namespace seal
     the reserve function at any time.
 
     When the scheme is scheme_type::bfv each coefficient of a plaintext is a 64-bit
-    word, but when the scheme is scheme_type::ckks the plaintext is by default
+    word, but when the scheme is scheme_type::ckks/scheme_type::mk_ckks the plaintext is by default
     stored in an NTT transformed form with respect to each of the primes in the
     coefficient modulus. Thus, the size of the allocation that is needed is the
     size of the coefficient modulus (number of primes) times the degree of the

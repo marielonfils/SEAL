@@ -107,7 +107,7 @@ namespace seal
         size_t coeff_count = parms.poly_modulus_degree();
         bool is_ntt_form = false;
 
-        if (parms.scheme() == scheme_type::ckks || parms.scheme() == scheme_type::bgv)
+        if (parms.scheme() == scheme_type::ckks || parms.scheme() == scheme_type::mk_ckks || parms.scheme() == scheme_type::bgv)
         {
             is_ntt_form = true;
         }
@@ -136,7 +136,7 @@ namespace seal
 
                 // Modulus switching
                 SEAL_ITERATE(iter(temp, destination), temp.size(), [&](auto I) {
-                    if (parms.scheme() == scheme_type::ckks)
+                    if (parms.scheme() == scheme_type::ckks || parms.scheme() == scheme_type::mk_ckks)
                     {
                         rns_tool->divide_and_round_q_last_ntt_inplace(
                             get<0>(I), prev_context_data.small_ntt_tables(), pool);
@@ -213,7 +213,7 @@ namespace seal
             // Result gets added into the c_0 term of ciphertext (c_0,c_1).
             multiply_add_plain_with_scaling_variant(plain, *context_.first_context_data(), *iter(destination));
         }
-        else if (scheme == scheme_type::ckks)
+        else if (scheme == scheme_type::ckks || scheme == scheme_type::mk_ckks)
         {
             if (!plain.is_ntt_form())
             {

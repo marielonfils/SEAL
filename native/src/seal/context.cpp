@@ -345,7 +345,7 @@ namespace seal
                     context_data.plain_upper_half_increment_.get());
             }
         }
-        else if (parms.scheme() == scheme_type::ckks)
+        else if (parms.scheme() == scheme_type::ckks || parms.scheme() == scheme_type::mk_ckks)
         {
             // Check that plain_modulus is set to zero
             if (!plain_modulus.is_zero())

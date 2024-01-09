@@ -48,7 +48,12 @@ namespace seal
         */
         PublicKey(PublicKey &&source) = default;
 
-        //TODO comments
+        /**
+        Creates a new PublicKey from a ciphertext.
+
+        @param[in] ciphertext The Ciphertext from which
+                   to create the PublicKey
+        */
         PublicKey(const Ciphertext &ciphertext){
             PublicKey(ciphertext.pool());
             this->pk_ = ciphertext;

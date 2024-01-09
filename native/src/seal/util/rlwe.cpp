@@ -231,7 +231,7 @@ namespace seal
             {
                 ntt_negacyclic_harvey(u.get() + i * coeff_count, ntt_tables[i]);
                 for (size_t j = 0; j < encrypted_size; j++)
-                {
+                { 
                     dyadic_product_coeffmod(
                         u.get() + i * coeff_count, public_key.data().data(j) + i * coeff_count, coeff_count,
                         coeff_modulus[i], destination.data(j) + i * coeff_count);
@@ -246,7 +246,7 @@ namespace seal
 
             // Generate e_j <-- chi
             // c[j] = public_key[j] * u + e[j] in BFV/CKKS, = public_key[j] * u + p * e[j] in BGV,
-            for (size_t j = 0; j < encrypted_size; j++)
+                        for (size_t j = 0; j < encrypted_size; j++)
             {
                 SEAL_NOISE_SAMPLER(prng, parms, u.get());
                 RNSIter gaussian_iter(u.get(), coeff_count);
@@ -360,7 +360,7 @@ namespace seal
                 dyadic_product_coeffmod(
                     secret_key.data().data() + i * coeff_count, c1 + i * coeff_count, coeff_count, coeff_modulus[i],
                     c0 + i * coeff_count);
-                if (is_ntt_form)
+                                    if (is_ntt_form)
                 {
                     // Transform the noise e into NTT representation
                     ntt_negacyclic_harvey(noise.get() + i * coeff_count, ntt_tables[i]);

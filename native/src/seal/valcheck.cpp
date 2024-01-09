@@ -105,7 +105,7 @@ namespace seal
         double scale = in.scale();
         scheme_type scheme = context.first_context_data()->parms().scheme();
         if ((scale != 1.0 && (scheme == scheme_type::bfv || scheme == scheme_type::bgv)) ||
-            (scale == 0.0 && scheme == scheme_type::ckks))
+            (scale == 0.0 && scheme == scheme_type::ckks) || (scale == 0.0 && scheme == scheme_type::mk_ckks))
         {
             return false;
         }
@@ -113,7 +113,7 @@ namespace seal
         // Check that correction factor is 1 in BFV and CKKS or within the right bound in BGV
         uint64_t correction_factor = in.correction_factor();
         uint64_t plain_modulus = context.first_context_data()->parms().plain_modulus().value();
-        if ((correction_factor != 1 && (scheme == scheme_type::bfv || scheme == scheme_type::ckks)) ||
+        if ((correction_factor != 1 && (scheme == scheme_type::bfv || scheme == scheme_type::ckks || scheme == scheme_type::mk_ckks)) ||
             ((correction_factor == 0 || correction_factor >= plain_modulus) && scheme == scheme_type::bgv))
         {
             return false;

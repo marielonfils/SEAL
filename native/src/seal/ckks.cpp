@@ -19,7 +19,7 @@ namespace seal
         }
 
         auto &context_data = *context_.first_context_data();
-        if (context_data.parms().scheme() != scheme_type::ckks)
+        if (context_data.parms().scheme() != scheme_type::ckks && context_data.parms().scheme() != scheme_type::mk_ckks)
         {
             throw invalid_argument("unsupported scheme");
         }

@@ -34,7 +34,10 @@ namespace seal
         ckks = 0x2,
 
         // Brakerski-Gentry-Vaikuntanathan scheme
-        bgv = 0x3
+        bgv = 0x3,
+
+        // Multi-Key Cheon-Kim-Kim-Song scheme
+        mk_ckks = 0x4
     };
 
     /**
@@ -476,7 +479,10 @@ namespace seal
 
             case static_cast<std::uint8_t>(scheme_type::ckks):
                 /* fall through */
-
+            
+            case static_cast<std::uint8_t>(scheme_type::mk_ckks):
+                /* fall through */
+            
             case static_cast<std::uint8_t>(scheme_type::bgv):
                 return true;
             }
