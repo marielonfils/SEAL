@@ -290,6 +290,9 @@ namespace seal
             return create_galois_keys(context_.key_context_data()->galois_tool()->get_elts_all());
         }
 
+        /**TODO*/
+        PublicKey generate_b(bool save_seed,PublicKey &public_key) const;
+
         /**
         Enables access to private members of seal::KeyGenerator for SEAL_C.
         */
@@ -319,7 +322,7 @@ namespace seal
         Generates new public key matching to existing secret key.
         */
         PublicKey generate_pk(bool save_seed) const;
-
+        
         /**
         Generates new key switching keys for an array of new keys.
         */

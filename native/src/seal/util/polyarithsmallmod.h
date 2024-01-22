@@ -191,8 +191,11 @@ namespace seal
             }
 #endif
             auto poly_modulus_degree = result.poly_modulus_degree();
+            std::cout << "coeff_modulus_size in add " << coeff_modulus_size << std::endl;
             SEAL_ITERATE(iter(operand1, operand2, modulus, result), coeff_modulus_size, [&](auto I) {
+                std::cout << "c0 " << get<0>(I)[0] << " " << get<0>(I)[1] << " ds " << get<1>(I)[0] << " " << get<1>(I)[1]  << std::endl;
                 add_poly_coeffmod(get<0>(I), get<1>(I), poly_modulus_degree, get<2>(I), get<3>(I));
+                std::cout << "decryptedmk " << get<3>(I)[0] << " " << get<3>(I)[1] << " c0 " << get<0>(I)[0] << " " << get<0>(I)[1] << " ds " << get<1>(I)[0] << " " << get<1>(I)[1]  << std::endl;
             });
         }
 
@@ -223,8 +226,82 @@ namespace seal
             }
 #endif
             auto coeff_modulus_size = result.coeff_modulus_size();
+            std::cout << "size in add " << size << std::endl; 
             SEAL_ITERATE(iter(operand1, operand2, result), size, [&](auto I) {
                 add_poly_coeffmod(get<0>(I), get<1>(I), coeff_modulus_size, modulus, get<2>(I));
+            });
+        }
+
+         void add_pk_poly_coeffmod(
+            ConstCoeffIter operand1, ConstCoeffIter operand2, std::size_t coeff_count, const Modulus &modulus,
+            CoeffIter result);
+
+        inline void add_pk_poly_coeffmod(
+            ConstRNSIter operand1, ConstRNSIter operand2, std::size_t coeff_modulus_size, ConstModulusIter modulus,
+            RNSIter result)
+        {
+#ifdef SEAL_DEBUG
+            if (!operand1 && coeff_modulus_size > 0)
+            {
+                throw std::invalid_argument("operand1");
+            }
+            if (!operand2 && coeff_modulus_size > 0)
+            {
+                throw std::invalid_argument("operand2");
+            }
+            if (!result && coeff_modulus_size > 0)
+            {
+                throw std::invalid_argument("result");
+            }
+            if (!modulus && coeff_modulus_size > 0)
+            {
+                throw std::invalid_argument("modulus");
+            }
+            if (operand1.poly_modulus_degree() != result.poly_modulus_degree() ||
+                operand2.poly_modulus_degree() != result.poly_modulus_degree())
+            {
+                throw std::invalid_argument("incompatible iterators");
+            }
+#endif
+            auto poly_modulus_degree = result.poly_modulus_degree();
+            std::cout << "coeff_omdulus_size in add pk " << coeff_modulus_size << std::endl;
+            SEAL_ITERATE(iter(operand1, operand2, modulus, result), coeff_modulus_size, [&](auto I) {
+                add_poly_coeffmod(get<0>(I), get<1>(I), poly_modulus_degree, get<2>(I), get<3>(I));
+            });
+        }
+
+        inline void add_pk_poly_coeffmod(
+            ConstPolyIter operand1, ConstPolyIter operand2, std::size_t size, ConstModulusIter modulus, PolyIter result)
+        {
+#ifdef SEAL_DEBUG
+            if (!operand1 && size > 0)
+            {
+                throw std::invalid_argument("operand1");
+            }
+            if (!operand2 && size > 0)
+            {
+                throw std::invalid_argument("operand2");
+            }
+            if (!result && size > 0)
+            {
+                throw std::invalid_argument("result");
+            }
+            if (!modulus && size > 0)
+            {
+                throw std::invalid_argument("modulus");
+            }
+            if (operand1.coeff_modulus_size() != result.coeff_modulus_size() ||
+                operand2.coeff_modulus_size() != result.coeff_modulus_size())
+            {
+                throw std::invalid_argument("incompatible iterators");
+            }
+#endif
+            auto coeff_modulus_size = result.coeff_modulus_size();
+            //TODO condition size == 2
+            std::cout << "size in add pk" << size << std::endl;
+            SEAL_ITERATE(iter(operand1, operand2, result), size-1, [&](auto I) {
+                //add_pk_poly_coeffmod(operand1, operand2, coeff_modulus_size, modulus, result);
+                add_pk_poly_coeffmod(get<0>(I),get<1>(I),coeff_modulus_size,modulus,get<2>(I));
             });
         }
 

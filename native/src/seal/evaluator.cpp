@@ -215,14 +215,18 @@ namespace seal
             encrypted1.correction_factor() = get<0>(factors);
             encrypted2_copy.correction_factor() = get<0>(factors);
 
-            add_inplace(encrypted1, encrypted2_copy);
+            add_inplace(encrypted1, encrypted2_copy,pk);
         }
         else
         {
             // Prepare destination
             encrypted1.resize(context_, context_data.parms_id(), max_count);
             // Add ciphertexts
-            add_poly_coeffmod(encrypted1, encrypted2, min_count, coeff_modulus, encrypted1);
+            if (pk){//add public keys
+                add_pk_poly_coeffmod(encrypted1, encrypted2, min_count, coeff_modulus, encrypted1);
+            }else{
+                add_poly_coeffmod(encrypted1, encrypted2, min_count, coeff_modulus, encrypted1);
+            }
 
             // Copy the remainding polys of the array with larger count into encrypted1
             if (encrypted1_size < encrypted2_size)

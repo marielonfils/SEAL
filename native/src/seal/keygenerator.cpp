@@ -76,7 +76,6 @@ namespace seal
             // Transform the secret s into NTT representation.
             auto ntt_tables = context_data.small_ntt_tables();
             ntt_negacyclic_harvey(secret_key, coeff_modulus_size, ntt_tables);
-
             // Set the parms_id for secret key
             secret_key_.parms_id() = context_data.parms_id();
         }
@@ -112,6 +111,34 @@ namespace seal
 
         PublicKey public_key;
         encrypt_zero_symmetric(secret_key_, context_, context_data.parms_id(), true, save_seed, public_key.data());
+
+        // Set the parms_id for public key
+        public_key.parms_id() = context_data.parms_id();
+
+        return public_key;
+    }
+
+    PublicKey KeyGenerator::generate_b(bool save_seed, PublicKey &public_key) const
+    {
+        if (!sk_generated_)
+        {
+            throw logic_error("cannot generate public key for unspecified secret key");
+        }
+
+        // Extract encryption parameters.
+        auto &context_data = *context_.key_context_data();
+        auto &parms = context_data.parms();
+        auto &coeff_modulus = parms.coeff_modulus();
+        size_t coeff_count = parms.poly_modulus_degree();
+        size_t coeff_modulus_size = coeff_modulus.size();
+
+        // Size check
+        if (!product_fits_in(coeff_count, coeff_modulus_size))
+        {
+            throw logic_error("invalid parameters");
+        }
+
+        encrypt_zero_symmetric_without_a(secret_key_, context_, context_data.parms_id(), true, save_seed, public_key.data());
 
         // Set the parms_id for public key
         public_key.parms_id() = context_data.parms_id();

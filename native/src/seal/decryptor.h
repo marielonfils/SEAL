@@ -72,6 +72,7 @@ namespace seal
         @throws std::invalid_argument if encrypted is not in the default NTT form
         */
         void decrypt(const Ciphertext &encrypted, Plaintext &destination);
+        void decrypt2(const Ciphertext &encrypted, Plaintext &destination);
         
         /*
         Decryption share of a Ciphertext and stores the result in the destination parameter.

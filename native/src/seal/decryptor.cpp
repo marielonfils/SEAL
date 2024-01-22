@@ -64,7 +64,6 @@ namespace seal
         {
             throw invalid_argument("secret key is not valid for encryption parameters");
         }
-
         auto &parms = context_.key_context_data()->parms();
         auto &coeff_modulus = parms.coeff_modulus();
         size_t coeff_count = parms.poly_modulus_degree();
@@ -116,6 +115,47 @@ namespace seal
             throw invalid_argument("unsupported scheme");
         }
     }
+
+    void Decryptor::decrypt2(const Ciphertext &encrypted, Plaintext &destination)
+    {
+        // Verify that encrypted is valid.
+        if (!is_valid_for(encrypted, context_))
+        {
+            throw invalid_argument("encrypted is not valid for encryption parameters");
+        }
+
+        // Additionally check that ciphertext doesn't have trivial size
+        if (encrypted.size() < SEAL_CIPHERTEXT_SIZE_MIN)
+        {
+            throw invalid_argument("encrypted is empty");
+        }
+
+        auto &context_data = *context_.first_context_data();
+        auto &parms = context_data.parms();
+
+        switch (parms.scheme())
+        {
+        case scheme_type::bfv:
+            bfv_decrypt(encrypted, destination, pool_);
+            return;
+
+        case scheme_type::ckks:
+            mk_ckks_decrypt(encrypted, destination, pool_);
+            return;
+        
+        case scheme_type::mk_ckks:
+            mk_ckks_decrypt(encrypted, destination, pool_);
+            return;
+        
+        case scheme_type::bgv:
+            bgv_decrypt(encrypted, destination, pool_);
+            return;
+
+        default:
+            throw invalid_argument("unsupported scheme");
+        }
+    }
+
 
     void Decryptor::decryption_share(const Ciphertext &encrypted, Plaintext &destination)
     {
@@ -429,6 +469,7 @@ namespace seal
                         dyadic_product_coeffmod(get<1>(I), get<2>(I), coeff_count, get<3>(I), get<4>(I));
                         // add c_0 to the result; note that destination should be in the same (NTT) form as encrypted
                         add_poly_coeffmod(get<4>(I), get<0>(I), coeff_count, get<3>(I), get<4>(I));
+                        cout << "decrypted " << get<4>(I)[0] << " " << get<4>(I)[1] << " c0 " << get<0>(I)[0] << " "<< get<0>(I)[1] << endl;
                     });
             }
             else
@@ -567,6 +608,7 @@ namespace seal
                     iter(noise_iter, c1, secret_key_array, coeff_modulus, destination, ntt_tables), coeff_modulus_size, [&](auto I) {
                         // put < c_1 * s > mod q in destination
                         dyadic_product_coeffmod(get<1>(I), get<2>(I), coeff_count, get<3>(I), get<4>(I));
+                        cout << "ds " << get<4>(I)[0] << " "<< get<4>(I)[1] << " c1 " << get<1>(I)[0] << " " << get<1>(I)[1] << " s " << get<2>(I)[0] << " " << get<2>(I)[1] << endl;
                         // Transform the noise e into NTT representation
                         ntt_negacyclic_harvey(get<0>(I), get<5>(I)); 
                         // add noise to the result; note that destination should be in the same (NTT) form as encrypted
@@ -585,7 +627,7 @@ namespace seal
                         dyadic_product_coeffmod(get<5>(I), get<2>(I), coeff_count, get<3>(I), get<5>(I));
                         // Transform back
                         inverse_ntt_negacyclic_harvey(get<5>(I), get<4>(I));
-                        // add c_0 to the result; note that destination should be in the same (NTT) form as encrypted
+                        // add noise to the result; note that destination should be in the same (NTT) form as encrypted
                         add_poly_coeffmod(get<5>(I), get<0>(I), coeff_count, get<3>(I), get<5>(I));
                     });
             }

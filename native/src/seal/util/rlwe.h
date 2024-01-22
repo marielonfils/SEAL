@@ -25,6 +25,9 @@ namespace seal
         void sample_poly_ternary(
             std::shared_ptr<UniformRandomGenerator> prng, const EncryptionParameters &parms,
             std::uint64_t *destination);
+        void sample_poly_ternary(
+            std::shared_ptr<UniformRandomGenerator> prng, const EncryptionParameters &parms,
+            std::uint64_t *destination);
 
         /**
         Generate a polynomial from a normal distribution and store in RNS representation.
@@ -108,6 +111,10 @@ namespace seal
         replaced with the random seed used to sample this component
         */
         void encrypt_zero_symmetric(
+            const SecretKey &secret_key, const SEALContext &context, parms_id_type parms_id, bool is_ntt_form,
+            bool save_seed, Ciphertext &destination);
+        /**TODO*/
+        void encrypt_zero_symmetric_without_a(
             const SecretKey &secret_key, const SEALContext &context, parms_id_type parms_id, bool is_ntt_form,
             bool save_seed, Ciphertext &destination);
     } // namespace util
