@@ -191,11 +191,8 @@ namespace seal
             }
 #endif
             auto poly_modulus_degree = result.poly_modulus_degree();
-            std::cout << "coeff_modulus_size in add " << coeff_modulus_size << std::endl;
             SEAL_ITERATE(iter(operand1, operand2, modulus, result), coeff_modulus_size, [&](auto I) {
-                std::cout << "c0 " << get<0>(I)[0] << " " << get<0>(I)[1] << " ds " << get<1>(I)[0] << " " << get<1>(I)[1]  << std::endl;
                 add_poly_coeffmod(get<0>(I), get<1>(I), poly_modulus_degree, get<2>(I), get<3>(I));
-                std::cout << "decryptedmk " << get<3>(I)[0] << " " << get<3>(I)[1] << " c0 " << get<0>(I)[0] << " " << get<0>(I)[1] << " ds " << get<1>(I)[0] << " " << get<1>(I)[1]  << std::endl;
             });
         }
 
@@ -226,7 +223,6 @@ namespace seal
             }
 #endif
             auto coeff_modulus_size = result.coeff_modulus_size();
-            std::cout << "size in add " << size << std::endl; 
             SEAL_ITERATE(iter(operand1, operand2, result), size, [&](auto I) {
                 add_poly_coeffmod(get<0>(I), get<1>(I), coeff_modulus_size, modulus, get<2>(I));
             });
@@ -264,7 +260,6 @@ namespace seal
             }
 #endif
             auto poly_modulus_degree = result.poly_modulus_degree();
-            std::cout << "coeff_omdulus_size in add pk " << coeff_modulus_size << std::endl;
             SEAL_ITERATE(iter(operand1, operand2, modulus, result), coeff_modulus_size, [&](auto I) {
                 add_poly_coeffmod(get<0>(I), get<1>(I), poly_modulus_degree, get<2>(I), get<3>(I));
             });
@@ -297,10 +292,10 @@ namespace seal
             }
 #endif
             auto coeff_modulus_size = result.coeff_modulus_size();
-            //TODO condition size == 2
-            std::cout << "size in add pk" << size << std::endl;
+            if (size != 2){
+                throw std::logic_error("Public key must contain 2 elements");
+            }
             SEAL_ITERATE(iter(operand1, operand2, result), size-1, [&](auto I) {
-                //add_pk_poly_coeffmod(operand1, operand2, coeff_modulus_size, modulus, result);
                 add_pk_poly_coeffmod(get<0>(I),get<1>(I),coeff_modulus_size,modulus,get<2>(I));
             });
         }

@@ -290,7 +290,18 @@ namespace seal
             return create_galois_keys(context_.key_context_data()->galois_tool()->get_elts_all());
         }
 
-        /**TODO*/
+        /**
+         * Used in MK_CKKS to generate and return a new public key (b',a) with same value of a 
+         * as in the given public key (b,a).
+         * 
+         * It is the same function as generate_pk with the difference that it does
+         * not generate random values for a but keeps those in public_key.
+         * 
+         @param[in] public_key The public key from which the value of a is taken.
+         @return new PublicKey with same a as public_key and according value of b.
+
+         @throws std::logic_error if secret key not generated or if encryption parameters are invalid
+        */
         PublicKey generate_b(bool save_seed,PublicKey &public_key) const;
 
         /**

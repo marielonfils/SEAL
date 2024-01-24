@@ -33,7 +33,7 @@ namespace seal
                 uint64_t flag = static_cast<uint64_t>(-static_cast<int64_t>(rand == 0));
                 SEAL_ITERATE(
                     iter(StrideIter<uint64_t *>(&I, coeff_count), coeff_modulus), coeff_modulus_size,
-                    [&](auto J) { *get<0>(J) = rand + (flag & get<1>(J).value()) - 1;});//1099511390208;});//rand + (flag & get<1>(J).value()) - 1; cout << " ternary "<< rand + (flag & get<1>(J).value()) - 1 << endl;});
+                    [&](auto J) { *get<0>(J) = rand + (flag & get<1>(J).value()) - 1;});
             });
             
         } 
@@ -62,7 +62,6 @@ namespace seal
                     iter(StrideIter<uint64_t *>(&I, coeff_count), coeff_modulus), coeff_modulus_size,
                     [&](auto J) { *get<0>(J) = static_cast<uint64_t>(noise) + (flag & get<1>(J).value()); });
             });
-            //cout << " normal "<< destination[0] << endl;
         }
 
         void sample_poly_cbd(
@@ -125,44 +124,7 @@ namespace seal
                     {
                         prng->generate(sizeof(uint64_t), reinterpret_cast<seal_byte *>(&rand));
                     }
-                    //auto a = barrett_reduce_64(rand,modulus);
-                    //cout << " uniform " << a << endl;
-                    //return 777959827097%modulus.value();
                     return barrett_reduce_64(rand, modulus);
-                });
-                destination += coeff_count;
-            }
-            //cout << " uniform "<< destination[0] << endl;
-        }
-
-        void set_a(
-            shared_ptr<UniformRandomGenerator> prng, const EncryptionParameters &parms, uint64_t *destination, uint64_t* a)
-        {
-            // Extract encryption parameters
-            auto coeff_modulus = parms.coeff_modulus();
-            size_t coeff_modulus_size = coeff_modulus.size();
-            size_t coeff_count = parms.poly_modulus_degree();
-            size_t dest_byte_count = mul_safe(coeff_modulus_size, coeff_count, sizeof(uint64_t));
-
-            constexpr uint64_t max_random = static_cast<uint64_t>(0xFFFFFFFFFFFFFFFFULL);
-
-            // Fill the destination buffer with fresh randomness
-            prng->generate(dest_byte_count, reinterpret_cast<seal_byte *>(destination));
-
-            for (size_t j = 0; j < coeff_modulus_size; j++)
-            {
-                auto &modulus = coeff_modulus[j];
-                uint64_t max_multiple = max_random - barrett_reduce_64(max_random, modulus) - 1;
-                transform(destination, destination + coeff_count, destination, [&](uint64_t rand) {
-                    // This ensures uniform distribution
-                    while (rand >= max_multiple)
-                    {
-                        prng->generate(sizeof(uint64_t), reinterpret_cast<seal_byte *>(&rand));
-                    }
-                    //auto a = barrett_reduce_64(rand,modulus);
-                    //cout << " uniform " << a << endl;
-                    return a[j]%modulus.value();
-                    //return barrett_reduce_64(rand, modulus);
                 });
                 destination += coeff_count;
             }
@@ -236,7 +198,6 @@ namespace seal
 #endif
             // We use a fresh memory pool with `clear_on_destruction' enabled
             MemoryPoolHandle pool = MemoryManager::GetPool(mm_prof_opt::mm_force_new, true);
-            cout << "pk in zero " << *public_key.data().data(0) << " "<< *public_key.data().data(1)<< endl;
             auto &context_data = *context.get_context_data(parms_id);
             auto &parms = context_data.parms();
             auto &coeff_modulus = parms.coeff_modulus();
@@ -530,7 +491,7 @@ namespace seal
                 add_poly_coeffmod(
                     noise.get() + i * coeff_count, c0 + i * coeff_count, coeff_count, coeff_modulus[i],
                     c0 + i * coeff_count);
-                //TODO
+                    
                 // (as + noise, a) -> (-(as + noise), a),
                 negate_poly_coeffmod(c0 + i * coeff_count, coeff_count, coeff_modulus[i], c0 + i * coeff_count);
             }
