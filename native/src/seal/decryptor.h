@@ -116,8 +116,6 @@ namespace seal
 
         void ckks_decrypt(const Ciphertext &encrypted, Plaintext &destination, MemoryPoolHandle pool);
 
-        void mk_ckks_decrypt(const Ciphertext &encrypted, Plaintext &destination, MemoryPoolHandle pool);
-
         void ckks_decryption_share(const Ciphertext &encrypted, Plaintext &destination, MemoryPoolHandle pool);
 
         void bgv_decrypt(const Ciphertext &encrypted, Plaintext &destination, MemoryPoolHandle pool);
@@ -136,11 +134,6 @@ namespace seal
         // Store result in destination in RNS form.
         // destination has the size of an RNS polynomial.
         void dot_product_ct_sk_array(const Ciphertext &encrypted, util::RNSIter destination, MemoryPoolHandle pool);
-
-        // Copy C_sum_0 + decryption shares mod q.
-        // Store result in destination in RNS form.
-        // destination has the size of an RNS polynomial.
-        void copy_ct_share(const Ciphertext &encrypted, util::RNSIter destination, MemoryPoolHandle pool);
 
         // Compute c_1 *s + ... + c_{count-1} * s^{count-1} mod q.
         // Store result in destination in RNS form.

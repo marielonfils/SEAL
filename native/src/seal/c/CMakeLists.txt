@@ -8,6 +8,7 @@ target_sources(sealc PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/ckksencoder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contextdata.cpp
     ${CMAKE_CURRENT_LIST_DIR}/decryptor.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/mkdecryptor.cpp
     ${CMAKE_CURRENT_LIST_DIR}/encryptionparameterqualifiers.cpp
     ${CMAKE_CURRENT_LIST_DIR}/encryptionparameters.cpp
     ${CMAKE_CURRENT_LIST_DIR}/encryptor.cpp
@@ -37,6 +38,7 @@ install(
         ${CMAKE_CURRENT_LIST_DIR}/ckksencoder.h
         ${CMAKE_CURRENT_LIST_DIR}/contextdata.h
         ${CMAKE_CURRENT_LIST_DIR}/decryptor.h
+        ${CMAKE_CURRENT_LIST_DIR}/mkdecryptor.h
         ${CMAKE_CURRENT_LIST_DIR}/defines.h
         ${CMAKE_CURRENT_LIST_DIR}/encryptionparameterqualifiers.h
         ${CMAKE_CURRENT_LIST_DIR}/encryptionparameters.h

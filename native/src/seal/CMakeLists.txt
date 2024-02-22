@@ -8,6 +8,7 @@ set(SEAL_SOURCE_FILES ${SEAL_SOURCE_FILES}
     ${CMAKE_CURRENT_LIST_DIR}/ckks.cpp
     ${CMAKE_CURRENT_LIST_DIR}/context.cpp
     ${CMAKE_CURRENT_LIST_DIR}/decryptor.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/mkdecryptor.cpp
     ${CMAKE_CURRENT_LIST_DIR}/encryptionparams.cpp
     ${CMAKE_CURRENT_LIST_DIR}/encryptor.cpp
     ${CMAKE_CURRENT_LIST_DIR}/evaluator.cpp
@@ -30,6 +31,7 @@ install(
         ${CMAKE_CURRENT_LIST_DIR}/modulus.h
         ${CMAKE_CURRENT_LIST_DIR}/context.h
         ${CMAKE_CURRENT_LIST_DIR}/decryptor.h
+        ${CMAKE_CURRENT_LIST_DIR}/mkdecryptor.h
         ${CMAKE_CURRENT_LIST_DIR}/dynarray.h
         ${CMAKE_CURRENT_LIST_DIR}/encryptionparams.h
         ${CMAKE_CURRENT_LIST_DIR}/encryptor.h

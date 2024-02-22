@@ -302,7 +302,7 @@ namespace seal
 
          @throws std::logic_error if secret key not generated or if encryption parameters are invalid
         */
-        PublicKey generate_b(bool save_seed,PublicKey &public_key) const;
+        SEAL_NODISCARD PublicKey generate_b(bool save_seed,PublicKey &public_key) const;
 
         /**
         Enables access to private members of seal::KeyGenerator for SEAL_C.

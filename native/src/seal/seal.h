@@ -8,6 +8,7 @@
 #include "seal/ckks.h"
 #include "seal/context.h"
 #include "seal/decryptor.h"
+#include "seal/mkdecryptor.h"
 #include "seal/dynarray.h"
 #include "seal/encryptionparams.h"
 #include "seal/encryptor.h"
